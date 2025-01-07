@@ -215,7 +215,21 @@ namespace RookWorks
                 Debug.Log($"moving from [{fromX},{fromY}] to [{toX},{toY}]");
 
                 string piece = _board[fromY, fromX];
-                _board[toY, toX] = piece;
+                
+                // Check if the move is a promotion
+                bool isPromotion = piece.ToLower() == "p" &&
+                                   (toY == 0 || toY == 7);
+
+                if (isPromotion)
+                {
+                    // Handle pawn promotion
+                    _board[toY, toX] = PromotePawn(piece[0]);
+                }
+                else
+                {
+                    _board[toY, toX] = piece;
+                }
+
                 _board[fromY, fromX] = "";
 
                 if (IsEnPassantMove(fromX, fromY, toX, toY))
@@ -243,6 +257,12 @@ namespace RookWorks
                     _enPassantTarget = null;
                 }
             }
+        }
+        
+        private string PromotePawn(char color)
+        {
+            // Default to queen; adjust for player/AI choice
+            return color == 'P' ? "Q" : "q";
         }
 
         public string GetStringBoard()
@@ -308,78 +328,6 @@ namespace RookWorks
                 _blackCanCastleKingside = false;
                 _blackCanCastleQueenside = false;
             }
-        }
-
-        private bool IsCastlingLegal(string move)
-        {
-            if (move == "O-O") // kingside castle
-            {
-                if (_whiteCanCastleKingside)
-                {
-                    return IsPathClear(4, 0, 6, 0) &&
-                           !IsKingInCheck(true) && // Current position
-                           !WouldMoveThroughCheck(4, 0, 5, 0, true) && // Through square
-                           !WouldMoveThroughCheck(4, 0, 6, 0, true); // Destination square
-                }
-
-                if (_blackCanCastleKingside)
-                {
-                    return IsPathClear(4, 7, 6, 7) &&
-                           !IsKingInCheck(false) &&
-                           !WouldMoveThroughCheck(4, 7, 5, 7, false) &&
-                           !WouldMoveThroughCheck(4, 7, 6, 7, false);
-                }
-            }
-            else if (move == "O-O-O") // queenside castle
-            {
-                if (_whiteCanCastleQueenside)
-                {
-                    return IsPathClear(4, 0, 2, 0) &&
-                           !IsKingInCheck(true) &&
-                           !WouldMoveThroughCheck(4, 0, 3, 0, true) &&
-                           !WouldMoveThroughCheck(4, 0, 2, 0, true);
-                }
-
-                if (_blackCanCastleQueenside)
-                {
-                    return IsPathClear(4, 7, 2, 7) &&
-                           !IsKingInCheck(false) &&
-                           !WouldMoveThroughCheck(4, 7, 3, 7, false) &&
-                           !WouldMoveThroughCheck(4, 7, 2, 7, false);
-                }
-            }
-
-            return false;
-        }
-
-        private bool WouldMoveThroughCheck(int fromX, int fromY, int toX, int toY, bool isWhite)
-        {
-            // Simulate the move
-            string temp = _board[toY, toX];
-            _board[toY, toX] = _board[fromY, fromX];
-            _board[fromY, fromX] = "";
-
-            bool inCheck = IsKingInCheck(isWhite);
-
-            // Undo the move
-            _board[fromY, fromX] = _board[toY, toX];
-            _board[toY, toX] = temp;
-
-            return inCheck;
-        }
-
-        private bool IsPathClear(int fromX, int fromY, int toX, int toY)
-        {
-            int step = fromX < toX ? 1 : -1;
-            for (int x = fromX + step; x != toX; x += step)
-            {
-                if (!string.IsNullOrEmpty(_board[fromY, x]))
-                {
-                    return false;
-                }
-            }
-
-            return true;
         }
 
         public bool IsKingInCheck(bool isWhite)
@@ -491,20 +439,29 @@ namespace RookWorks
 
         private void UpdateCastlingFlags(int fromX, int fromY, string piece)
         {
-            if (piece == "K")
+            switch (piece)
             {
-                _whiteCanCastleKingside = false;
-                _whiteCanCastleQueenside = false;
+                case "K":
+                    _whiteCanCastleKingside = false;
+                    _whiteCanCastleQueenside = false;
+                    break;
+                case "R" when fromX == 0 && fromY == 0:
+                    _whiteCanCastleQueenside = false;
+                    break;
+                case "R" when fromX == 7 && fromY == 0:
+                    _whiteCanCastleKingside = false;
+                    break;
+                case "k":
+                    _blackCanCastleKingside = false;
+                    _blackCanCastleQueenside = false;
+                    break;
+                case "r" when fromX == 0 && fromY == 0:
+                    _blackCanCastleQueenside = false;
+                    break;
+                case "r" when fromX == 7 && fromY == 0:
+                    _blackCanCastleKingside = false;
+                    break;
             }
-            if (piece == "R" && fromX == 0 && fromY == 0) _whiteCanCastleQueenside = false;
-            if (piece == "R" && fromX == 7 && fromY == 0) _whiteCanCastleKingside = false;
-            if (piece == "k")
-            {
-                _blackCanCastleKingside = false;
-                _blackCanCastleQueenside = false;
-            }
-            if (piece == "r" && fromX == 0 && fromY == 0) _blackCanCastleQueenside = false;
-            if (piece == "r" && fromX == 7 && fromY == 0) _blackCanCastleKingside = false;
         }
         
         public bool IsEnPassantMove(int fromX, int fromY, int toX, int toY)
