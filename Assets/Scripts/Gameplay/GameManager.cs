@@ -21,39 +21,32 @@ namespace RookWorks
 
         public void DoMove(string move)
         {
-            if (_board.IsMoveLegal(move))
+            
+            
+            
+            if (IsPlayerPiece(move) && _board.TryMove(move))
             {
-                if (IsPlayerPiece(move))
+                if (_board.IsCheckmate(!_isWhiteTurn))
                 {
-                    _board.ApplyMove(move);
-
-                    // Check if the opponent is in checkmate
-                    if (_board.IsCheckmate(!_isWhiteTurn))
-                    {
-                        Debug.Log($"Checkmate! {(_isWhiteTurn ? "White" : "Black")} wins!");
-                        return; // End the game
-                    }
+                    Debug.Log($"Checkmate! {(_isWhiteTurn ? "White" : "Black")} wins!");
+                    return; // End the game
+                }
                     
-                    if (_board.IsStalemate(!_isWhiteTurn))
-                    {
-                        Debug.Log($"Stalemate! draw");
-                        return; // End the game
-                    }
-
-                    // Check if the opponent is in check
-                    if (_board.IsKingInCheck(!_isWhiteTurn))
-                    {
-                        Debug.Log($"{(_isWhiteTurn ? "Black" : "White")} is in check!");
-                    }
-
-                    // Switch turn
-                    _isWhiteTurn = !_isWhiteTurn;
-                    Debug.Log($"Move {move} applied successfully.");
-                }
-                else
+                if (_board.IsStalemate(!_isWhiteTurn))
                 {
-                    Debug.Log("You cannot move your opponent's pieces!");
+                    Debug.Log($"Stalemate! draw");
+                    return; // End the game
                 }
+
+                // Check if the opponent is in check
+                if (_board.IsKingInCheck(!_isWhiteTurn))
+                {
+                    Debug.Log($"{(_isWhiteTurn ? "Black" : "White")} is in check!");
+                }
+
+                // Switch turn
+                _isWhiteTurn = !_isWhiteTurn;
+                Debug.Log($"Move {move} applied successfully.");
             }
             else
             {

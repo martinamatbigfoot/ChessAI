@@ -7,10 +7,10 @@ namespace RookWorks
     public class Board 
     {
         private string[,] _board = new string[8, 8];
-        private bool _whiteKingsideCastle = true;
-        private bool _whiteQueensideCastle = true;
-        private bool _blackKingsideCastle = true;
-        private bool _blackQueensideCastle = true;
+        private bool _whiteCanCastleKingside = true;
+        private bool _whiteCanCastleQueenside = true;
+        private bool _blackCanCastleKingside = true;
+        private bool _blackCanCastleQueenside = true;
         private (int, int) _whiteKingPosition = (4, 0);
         private (int, int) _blackKingPosition = (4, 7);
         private (int, int)? _enPassantTarget;
@@ -35,10 +35,10 @@ namespace RookWorks
                 { "r", "n", "b", "q", "k", "b", "n", "r" }
             };
             
-            _whiteKingsideCastle = true;
-            _whiteQueensideCastle = true;
-            _blackKingsideCastle = true;
-            _blackQueensideCastle = true;
+            _whiteCanCastleKingside = true;
+            _whiteCanCastleQueenside = true;
+            _blackCanCastleKingside = true;
+            _blackCanCastleQueenside = true;
         }
 
         public void SetCustomPosition(string fen)
@@ -109,10 +109,10 @@ namespace RookWorks
             Debug.Log($"Active color: {(isWhiteToMove ? "White" : "Black")}");
 
             // Parse castling availability
-            _whiteKingsideCastle = castlingAvailability.Contains('K');
-            _whiteQueensideCastle = castlingAvailability.Contains('Q');
-            _blackKingsideCastle = castlingAvailability.Contains('k');
-            _blackQueensideCastle = castlingAvailability.Contains('q');
+            _whiteCanCastleKingside = castlingAvailability.Contains('K');
+            _whiteCanCastleQueenside = castlingAvailability.Contains('Q');
+            _blackCanCastleKingside = castlingAvailability.Contains('k');
+            _blackCanCastleQueenside = castlingAvailability.Contains('q');
 
             // Parse en passant target square
             _enPassantTarget = enPassantTarget == "-" ? null : ParseSquare(enPassantTarget);
@@ -136,13 +136,20 @@ namespace RookWorks
             return _board[y, x];
         }
 
-        public bool IsMoveLegal(string move)
+
+        public bool TryMove(string move)
         {
-            if (move == "O-O" || move == "O-O-O")
+            if (IsLegalMove(move))
             {
-                return IsCastlingLegal(move);
+                ApplyMove(move);
+                return true;
             }
-            
+
+            return false;
+        }
+
+        private bool IsLegalMove(string move)
+        {
             int fromX = move[0] - 'a';
             int fromY = move[1] - '1';
             int toX = move[2] - 'a';
@@ -158,16 +165,22 @@ namespace RookWorks
             {
                 return false;
             }
-
+            
+            
+            bool isWhite = char.IsUpper(piece[0]);
+            
+            bool canCastleKingside = !isWhite ? _blackCanCastleKingside : _whiteCanCastleKingside;
+            bool canCastleQueenside = !isWhite ? _blackCanCastleQueenside : _whiteCanCastleQueenside;
+            
             // Check if the move is valid for the piece
-            var legalMoves = PieceMove.GetLegalMoves(piece, fromX, fromY, _board, _enPassantTarget);
+            var legalMoves = PieceMove.GetLegalMoves(piece, fromX, fromY, _board, _enPassantTarget, isWhite,
+                canCastleKingside, canCastleQueenside);
             if (!legalMoves.Contains((toX, toY)))
             {
                 return false;
             }
 
             // Simulate the move and check if it leaves the king in check
-            bool isWhite = char.IsUpper(piece[0]);
             if (!WouldMoveResolveCheck(fromX, fromY, toX, toY, isWhite))
             {
                 return false;
@@ -251,49 +264,49 @@ namespace RookWorks
         
         private void PerformKingsideCastle()
         {
-            if (_whiteKingsideCastle)
+            if (_whiteCanCastleKingside)
             {
                 // White short castle
                 _board[0, 6] = "K";
                 _board[0, 4] = "";
                 _board[0, 5] = "R";
                 _board[0, 7] = "";
-                _whiteKingsideCastle = false;
-                _whiteQueensideCastle = false;
+                _whiteCanCastleKingside = false;
+                _whiteCanCastleQueenside = false;
             }
-            else if (_blackKingsideCastle)
+            else if (_blackCanCastleKingside)
             {
                 // Black short castle
                 _board[7, 6] = "k";
                 _board[7, 4] = "";
                 _board[7, 5] = "r";
                 _board[7, 7] = "";
-                _blackKingsideCastle = false;
-                _blackQueensideCastle = false;
+                _blackCanCastleKingside = false;
+                _blackCanCastleQueenside = false;
             }
         }
 
         private void PerformQueensideCastle()
         {
-            if (_whiteQueensideCastle)
+            if (_whiteCanCastleQueenside)
             {
                 // White long castle
                 _board[0, 2] = "K";
                 _board[0, 4] = "";
                 _board[0, 3] = "R";
                 _board[0, 0] = "";
-                _whiteKingsideCastle = false;
-                _whiteQueensideCastle = false;
+                _whiteCanCastleKingside = false;
+                _whiteCanCastleQueenside = false;
             }
-            else if (_blackQueensideCastle)
+            else if (_blackCanCastleQueenside)
             {
                 // Black long castle
                 _board[7, 2] = "k";
                 _board[7, 4] = "";
                 _board[7, 3] = "r";
                 _board[7, 0] = "";
-                _blackKingsideCastle = false;
-                _blackQueensideCastle = false;
+                _blackCanCastleKingside = false;
+                _blackCanCastleQueenside = false;
             }
         }
 
@@ -301,7 +314,7 @@ namespace RookWorks
         {
             if (move == "O-O") // kingside castle
             {
-                if (_whiteKingsideCastle)
+                if (_whiteCanCastleKingside)
                 {
                     return IsPathClear(4, 0, 6, 0) &&
                            !IsKingInCheck(true) && // Current position
@@ -309,7 +322,7 @@ namespace RookWorks
                            !WouldMoveThroughCheck(4, 0, 6, 0, true); // Destination square
                 }
 
-                if (_blackKingsideCastle)
+                if (_blackCanCastleKingside)
                 {
                     return IsPathClear(4, 7, 6, 7) &&
                            !IsKingInCheck(false) &&
@@ -319,7 +332,7 @@ namespace RookWorks
             }
             else if (move == "O-O-O") // queenside castle
             {
-                if (_whiteQueensideCastle)
+                if (_whiteCanCastleQueenside)
                 {
                     return IsPathClear(4, 0, 2, 0) &&
                            !IsKingInCheck(true) &&
@@ -327,7 +340,7 @@ namespace RookWorks
                            !WouldMoveThroughCheck(4, 0, 2, 0, true);
                 }
 
-                if (_blackQueensideCastle)
+                if (_blackCanCastleQueenside)
                 {
                     return IsPathClear(4, 7, 2, 7) &&
                            !IsKingInCheck(false) &&
@@ -382,7 +395,7 @@ namespace RookWorks
                     string piece = _board[y, x];
                     if (!string.IsNullOrEmpty(piece) && char.IsUpper(piece[0]) != isWhite)
                     {
-                        var legalMoves = PieceMove.GetLegalMoves(piece, x, y, _board, _enPassantTarget);
+                        var legalMoves = PieceMove.GetLegalMoves(piece, x, y, _board, _enPassantTarget, !isWhite, false, false);
                         if (legalMoves.Contains((kingX, kingY)))
                         {
                             return true;
@@ -406,7 +419,7 @@ namespace RookWorks
                     string piece = _board[y, x];
                     if (!string.IsNullOrEmpty(piece) && char.IsUpper(piece[0]) == isWhite)
                     {
-                        var legalMoves = PieceMove.GetLegalMoves(piece, x, y, _board, _enPassantTarget);
+                        var legalMoves = PieceMove.GetLegalMoves(piece, x, y, _board, _enPassantTarget, !isWhite, false, false);
                         foreach (var (toX, toY) in legalMoves)
                         {
                             if (WouldMoveResolveCheck(x, y, toX, toY, isWhite))
@@ -433,7 +446,7 @@ namespace RookWorks
                     string piece = _board[y, x];
                     if (!string.IsNullOrEmpty(piece) && char.IsUpper(piece[0]) == isWhite)
                     {
-                        var legalMoves = PieceMove.GetLegalMoves(piece, x, y, _board, _enPassantTarget);
+                        var legalMoves = PieceMove.GetLegalMoves(piece, x, y, _board, _enPassantTarget, !isWhite, false, false);
                         foreach (var (toX, toY) in legalMoves)
                         {
                             if (WouldMoveResolveCheck(x, y, toX, toY, isWhite))
@@ -480,18 +493,18 @@ namespace RookWorks
         {
             if (piece == "K")
             {
-                _whiteKingsideCastle = false;
-                _whiteQueensideCastle = false;
+                _whiteCanCastleKingside = false;
+                _whiteCanCastleQueenside = false;
             }
-            if (piece == "R" && fromX == 0 && fromY == 0) _whiteQueensideCastle = false;
-            if (piece == "R" && fromX == 7 && fromY == 0) _whiteKingsideCastle = false;
+            if (piece == "R" && fromX == 0 && fromY == 0) _whiteCanCastleQueenside = false;
+            if (piece == "R" && fromX == 7 && fromY == 0) _whiteCanCastleKingside = false;
             if (piece == "k")
             {
-                _blackKingsideCastle = false;
-                _blackQueensideCastle = false;
+                _blackCanCastleKingside = false;
+                _blackCanCastleQueenside = false;
             }
-            if (piece == "r" && fromX == 0 && fromY == 0) _blackQueensideCastle = false;
-            if (piece == "r" && fromX == 7 && fromY == 0) _blackKingsideCastle = false;
+            if (piece == "r" && fromX == 0 && fromY == 0) _blackCanCastleQueenside = false;
+            if (piece == "r" && fromX == 7 && fromY == 0) _blackCanCastleKingside = false;
         }
         
         public bool IsEnPassantMove(int fromX, int fromY, int toX, int toY)

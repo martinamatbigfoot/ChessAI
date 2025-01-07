@@ -4,13 +4,12 @@ namespace RookWorks
 {
     public class PieceMove 
     {
-        public static List<(int, int)> GetLegalMoves(string piece, int x, int y, string[,] board, (int, int)? enPassantTarget)
+        public static List<(int, int)> GetLegalMoves(string piece, int x, int y, string[,] board, (int, int)? enPassantTarget,
+            bool isWhite, bool canCastleKingside, bool canCastleQeenside)
         {
             var legalMoves = new List<(int, int)>();
 
             if (string.IsNullOrEmpty(piece)) return legalMoves;
-
-            bool isWhite = char.IsUpper(piece[0]);
             piece = piece.ToLower();
 
             switch (piece)
@@ -31,7 +30,7 @@ namespace RookWorks
                     legalMoves.AddRange(GetSlidingMoves(x, y, board, new[] { (0, 1), (1, 0), (0, -1), (-1, 0), (1, 1), (1, -1), (-1, 1), (-1, -1) }));
                     break;
                 case "k": // King
-                    legalMoves.AddRange(GetKingMoves(x, y, board, isWhite));
+                    legalMoves.AddRange(GetKingMoves(x, y, board, isWhite, canCastleKingside, canCastleQeenside));
                     break;
             }
 
@@ -117,7 +116,7 @@ namespace RookWorks
             return moves;
         }
 
-        private static List<(int, int)> GetKingMoves(int x, int y, string[,] board, bool isWhite)
+        private static List<(int, int)> GetKingMoves(int x, int y, string[,] board, bool isWhite, bool canCastleKingSide, bool canCastleQueenSide)
         {
             var moves = new List<(int, int)>();
             var kingOffsets = new[]
@@ -125,6 +124,7 @@ namespace RookWorks
                 (0, 1), (1, 0), (0, -1), (-1, 0), (1, 1), (1, -1), (-1, 1), (-1, -1)
             };
 
+            // Standard King moves
             foreach (var (dx, dy) in kingOffsets)
             {
                 int nx = x + dx, ny = y + dy;
@@ -134,7 +134,55 @@ namespace RookWorks
                 }
             }
 
+            // Castling logic
+            if (canCastleKingSide)
+            {
+                // Check if squares between the king and rook are empty and not under attack
+                if (IsInBounds(x + 1, y) && string.IsNullOrEmpty(board[y, x + 1]) &&
+                    IsInBounds(x + 2, y) && string.IsNullOrEmpty(board[y, x + 2]) &&
+                    !IsSquareUnderAttack(x, y, board, !isWhite) && // King's current square
+                    !IsSquareUnderAttack(x + 1, y, board, !isWhite) && // Square king moves through
+                    !IsSquareUnderAttack(x + 2, y, board, !isWhite)) // Square king lands on
+                {
+                    moves.Add((x + 2, y)); // Add the castling move
+                }
+            }
+
+            if (canCastleQueenSide)
+            {
+                // Check if squares between the king and rook are empty and not under attack
+                if (IsInBounds(x - 1, y) && string.IsNullOrEmpty(board[y, x - 1]) &&
+                    IsInBounds(x - 2, y) && string.IsNullOrEmpty(board[y, x - 2]) &&
+                    IsInBounds(x - 3, y) && string.IsNullOrEmpty(board[y, x - 3]) &&
+                    !IsSquareUnderAttack(x, y, board, !isWhite) && // King's current square
+                    !IsSquareUnderAttack(x - 1, y, board, !isWhite) && // Square king moves through
+                    !IsSquareUnderAttack(x - 2, y, board, !isWhite)) // Square king lands on
+                {
+                    moves.Add((x - 2, y)); // Add the castling move
+                }
+            }
+
             return moves;
+        }
+        
+        // Utility to check if a square is under attack
+        private static bool IsSquareUnderAttack(int x, int y, string[,] board, bool byWhite)
+        {
+            for (int i = 0; i < 8; i++)
+            {
+                for (int j = 0; j < 8; j++)
+                {
+                    if (!string.IsNullOrEmpty(board[j, i]) && char.IsUpper(board[j, i][0]) == byWhite)
+                    {
+                        var attackerMoves = GetLegalMoves(board[j, i], i, j, board, null, byWhite, false, false);
+                        if (attackerMoves.Contains((x, y)))
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
         }
 
         private static bool IsInBounds(int x, int y)
