@@ -1,0 +1,14 @@
+{
+    "name": "RookWorks.Gameplay",
+    "rootNamespace": "RookWorks.Gameplay",
+    "references": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

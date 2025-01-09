@@ -1,11 +1,13 @@
 using System.Collections;
 using System.Collections.Generic;
-using RookWorks;
+using RookWorks.Gameplay;
+using RookWorks.Visualization;
 using UnityEngine;
 using TMPro;
 
 public class CommandTests : MonoBehaviour
 {
+    public BoardView View;
     public TMP_InputField InputField;
     public TextMeshProUGUI Text;
     public StockfishInterface Interface;
@@ -15,25 +17,5 @@ public class CommandTests : MonoBehaviour
     public void SendCommand()
     {
         Interface.SendCommand(Command);
-    }
-
-    private GameManager _manager;
-
-    public void Start()
-    {
-        _manager = new GameManager();
-        Text.text = _manager.GetStringBoard();
-    }
-
-    public void DoMove()
-    {
-        _manager.DoMove(InputField.text);
-        Text.text = _manager.GetStringBoard();
-    }
-
-    public void SetPosition()
-    {
-        _manager.SetBoardPosition(InputField.text);
-        Text.text = _manager.GetStringBoard();
     }
 }

@@ -1,0 +1,17 @@
+{
+    "name": "RookWorks.Controller",
+    "rootNamespace": "RookWorks.Controller",
+    "references": [
+        "GUID:5ad499930f39f47cbb56446b79c747ff",
+        "GUID:672fe4be45b1b46bc8c6513518103cd6"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -1,12 +1,13 @@
 using System;
-using System.Text;
+using System.Collections.Generic;
 using UnityEngine;
 
-namespace RookWorks
+namespace RookWorks.Gameplay
 {
-    public class Board 
+    public class Board
     {
-        private string[,] _board = new string[8, 8];
+        public string[,] Squares => _squares;
+        private string[,] _squares = new string[8, 8];
         private bool _whiteCanCastleKingside = true;
         private bool _whiteCanCastleQueenside = true;
         private bool _blackCanCastleKingside = true;
@@ -14,6 +15,11 @@ namespace RookWorks
         private (int, int) _whiteKingPosition = (4, 0);
         private (int, int) _blackKingPosition = (4, 7);
         private (int, int)? _enPassantTarget;
+        private bool _isWhiteTurn;
+        public List<string> WhitePieceRemoved => _whitePieceRemoved;
+        private List<string> _whitePieceRemoved = new();
+        public List<string> BlackPieceRemoved => _blackPieceRemoved;
+        private List<string> _blackPieceRemoved = new();
         
         public Board()
         {
@@ -23,7 +29,7 @@ namespace RookWorks
         public void ResetBoard()
         {
             // Standard chess starting positions
-            _board = new string[,]
+            _squares = new string[,]
             {
                 { "R", "N", "B", "Q", "K", "B", "N", "R" }, // White pieces
                 { "P", "P", "P", "P", "P", "P", "P", "P" },
@@ -39,12 +45,15 @@ namespace RookWorks
             _whiteCanCastleQueenside = true;
             _blackCanCastleKingside = true;
             _blackCanCastleQueenside = true;
+            _isWhiteTurn = true;
+            _whitePieceRemoved.Clear();
+            _blackPieceRemoved.Clear();
         }
 
         public void SetCustomPosition(string fen)
         {
             // Start with a clean board
-            _board = new string[,]
+            _squares = new string[,]
             {
                 { "",  "",  "",  "",  "",  "",  "",  "" }, // White pieces
                 { "",  "",  "",  "",  "",  "",  "",  "" },
@@ -93,7 +102,7 @@ namespace RookWorks
                         {
                             throw new ArgumentException("Invalid FEN string: too many pieces in a rank.");
                         }
-                        _board[y, x] = c.ToString();
+                        _squares[y, x] = c.ToString();
                         x++;
                     }
                 }
@@ -103,10 +112,13 @@ namespace RookWorks
                     throw new ArgumentException("Invalid FEN string: rank must have exactly 8 squares.");
                 }
             }
+            
+            _whitePieceRemoved.Clear();
+            _blackPieceRemoved.Clear();
 
             // Parse active color
-            bool isWhiteToMove = activeColor == "w";
-            Debug.Log($"Active color: {(isWhiteToMove ? "White" : "Black")}");
+            _isWhiteTurn = activeColor == "w";
+            Debug.Log($"Active color: {(_isWhiteTurn ? "White" : "Black")}");
 
             // Parse castling availability
             _whiteCanCastleKingside = castlingAvailability.Contains('K');
@@ -125,17 +137,6 @@ namespace RookWorks
             int y = square[1] - '1';
             return (x, y);
         }
-        
-        public string GetPiece(int x, int y)
-        {
-            if (IsOutOfBounds(x, y))
-            {
-                return null;
-            }
-
-            return _board[y, x];
-        }
-
 
         public bool TryMove(string move)
         {
@@ -148,6 +149,21 @@ namespace RookWorks
             return false;
         }
 
+        public bool IsPlayerPieceInSquare(string square)
+        {
+            int fromX = square[0] - 'a';
+            int fromY = square[1] - '1';
+            if (_squares[fromY, fromX].Length > 0)
+                return _isWhiteTurn ? char.IsUpper(_squares[fromY, fromX][0]) : char.IsLower(_squares[fromY, fromX][0]);
+            return false;
+        }
+
+        private bool IsPlayerPiece(string piece)
+        {
+            // Check if the piece belongs to the current player
+            return _isWhiteTurn ? char.IsUpper(piece[0]) : char.IsLower(piece[0]);
+        }
+
         private bool IsLegalMove(string move)
         {
             int fromX = move[0] - 'a';
@@ -157,12 +173,16 @@ namespace RookWorks
 
             if (IsOutOfBounds(fromX, fromY) || IsOutOfBounds(toX, toY))
             {
+                Debug.Log("out of bounds");
                 return false;
             }
 
-            string piece = _board[fromY, fromX];
-            if (string.IsNullOrEmpty(piece))
+            
+
+            string piece = _squares[fromY, fromX];
+            if (string.IsNullOrEmpty(piece) || !IsPlayerPiece(piece))
             {
+                Debug.Log("wrong piece");
                 return false;
             }
             
@@ -173,16 +193,18 @@ namespace RookWorks
             bool canCastleQueenside = !isWhite ? _blackCanCastleQueenside : _whiteCanCastleQueenside;
             
             // Check if the move is valid for the piece
-            var legalMoves = PieceMove.GetLegalMoves(piece, fromX, fromY, _board, _enPassantTarget, isWhite,
+            var legalMoves = PieceMove.GetLegalMoves(piece, fromX, fromY, _squares, _enPassantTarget, isWhite,
                 canCastleKingside, canCastleQueenside);
             if (!legalMoves.Contains((toX, toY)))
             {
+                Debug.Log("legal moves are "+ legalMoves.Count);
                 return false;
             }
 
             // Simulate the move and check if it leaves the king in check
-            if (!WouldMoveResolveCheck(fromX, fromY, toX, toY, isWhite))
+            if (!WouldMoveResolveCheck(fromX, fromY, toX, toY))
             {
+                Debug.Log("not resolve check ");
                 return false;
             }
 
@@ -196,57 +218,62 @@ namespace RookWorks
         
         public void ApplyMove(string move)
         {
-            if (move == "O-O")
-            {
-                PerformKingsideCastle();
-            }
-            else if (move == "O-O-O")
-            {
-                PerformQueensideCastle();
-            }
+            int fromX = move[0] - 'a';
+            int fromY = move[1] - '1';
+            int toX = move[2] - 'a';
+            int toY = move[3] - '1';
+
+            Debug.Log($"moving from [{fromX},{fromY}] to [{toX},{toY}]");
+
+            string piece = _squares[fromY, fromX];
             
+            if (piece.ToLower() == Piece.King && Math.Abs(fromX - toX) == 2)
+            {
+                if (toX > fromX) // Kingside castling
+                {
+                    PerformKingsideCastle();
+                }
+                else // Queenside castling
+                {
+                    PerformQueensideCastle();
+                }
+                UpdateKingPosition(char.IsUpper(piece[0]), toX, toY);
+            }
             else
             {
-                int fromX = move[0] - 'a';
-                int fromY = move[1] - '1';
-                int toX = move[2] - 'a';
-                int toY = move[3] - '1';
-
-                Debug.Log($"moving from [{fromX},{fromY}] to [{toX},{toY}]");
-
-                string piece = _board[fromY, fromX];
-                
                 // Check if the move is a promotion
-                bool isPromotion = piece.ToLower() == "p" &&
+                bool isPromotion = piece.ToLower() == Piece.Pawn &&
                                    (toY == 0 || toY == 7);
 
-                if (isPromotion)
+                if (isPromotion && move.Length == 5)
                 {
                     // Handle pawn promotion
-                    _board[toY, toX] = PromotePawn(piece[0]);
+                    char promotionPiece = move[4]; // Get the promotion piece (e.g., 'q', 'r', 'b', 'n')
+                    _squares[toY, toX] = PromotePawn(piece[0], promotionPiece);
                 }
                 else
                 {
-                    _board[toY, toX] = piece;
+                    UpdatePiecesRemoved(toX, toY);
+                    _squares[toY, toX] = piece;
                 }
-
-                _board[fromY, fromX] = "";
-
+                
                 if (IsEnPassantMove(fromX, fromY, toX, toY))
                 {
                     // Remove the captured pawn
                     int capturedPawnY = toY + (fromY > toY ? 1 : -1);
-                    _board[capturedPawnY, toX] = "";
+                    UpdatePiecesRemoved(toX, capturedPawnY);
+                    _squares[capturedPawnY, toX] = "";
                 }
 
+                _squares[fromY, fromX] = "";
 
                 UpdateCastlingFlags(fromX, fromY, piece);
-                if (piece == "K" || piece == "k")
+                if (piece.ToLower() == Piece.King)
                 {
                     UpdateKingPosition(char.IsUpper(piece[0]), toX, toY);
                 }
 
-                if (piece.ToLower() == "p" && Math.Abs(toY - fromY) == 2)
+                if (piece.ToLower() == Piece.Pawn && Math.Abs(toY - fromY) == 2)
                 {
                     // Update en passant target when a pawn moves two squares forward
                     _enPassantTarget = (fromX, (fromY + toY) / 2);
@@ -257,50 +284,54 @@ namespace RookWorks
                     _enPassantTarget = null;
                 }
             }
-        }
-        
-        private string PromotePawn(char color)
-        {
-            // Default to queen; adjust for player/AI choice
-            return color == 'P' ? "Q" : "q";
+
+            _isWhiteTurn = !_isWhiteTurn;
         }
 
-        public string GetStringBoard()
+        private void UpdatePiecesRemoved(int x, int y)
         {
-            StringBuilder sb = new StringBuilder();
-            for (int y = 7; y >= 0; y--)
+            var piece = _squares[y, x];
+            if (piece != "")
             {
-                for (int x = 0; x < 8; x++)
+                if (_isWhiteTurn)
                 {
-                    string piece = _board[y, x];
-                    sb.Append(string.IsNullOrEmpty(piece) ? "." : piece);
-                    sb.Append(" ");
+                    _blackPieceRemoved.Add(piece);
                 }
-                sb.AppendLine();
+                else
+                {
+                    _whitePieceRemoved.Add(piece);
+                }
             }
-
-            return sb.ToString();
         }
         
+        private string PromotePawn(char color, char promotionPiece)
+        {
+            // Convert the promotion piece to uppercase (white) or lowercase (black) based on the pawn's color
+            char promotedPiece = char.IsUpper(color) ? char.ToUpper(promotionPiece) : char.ToLower(promotionPiece);
+
+            // Return the promoted piece as a string
+            return promotedPiece.ToString();
+        }
+
         private void PerformKingsideCastle()
         {
             if (_whiteCanCastleKingside)
             {
                 // White short castle
-                _board[0, 6] = "K";
-                _board[0, 4] = "";
-                _board[0, 5] = "R";
-                _board[0, 7] = "";
+                _squares[0, 6] = "K";
+                _squares[0, 4] = "";
+                _squares[0, 5] = "R";
+                _squares[0, 7] = "";
                 _whiteCanCastleKingside = false;
                 _whiteCanCastleQueenside = false;
             }
             else if (_blackCanCastleKingside)
             {
                 // Black short castle
-                _board[7, 6] = "k";
-                _board[7, 4] = "";
-                _board[7, 5] = "r";
-                _board[7, 7] = "";
+                _squares[7, 6] = "k";
+                _squares[7, 4] = "";
+                _squares[7, 5] = "r";
+                _squares[7, 7] = "";
                 _blackCanCastleKingside = false;
                 _blackCanCastleQueenside = false;
             }
@@ -311,39 +342,39 @@ namespace RookWorks
             if (_whiteCanCastleQueenside)
             {
                 // White long castle
-                _board[0, 2] = "K";
-                _board[0, 4] = "";
-                _board[0, 3] = "R";
-                _board[0, 0] = "";
+                _squares[0, 2] = "K";
+                _squares[0, 4] = "";
+                _squares[0, 3] = "R";
+                _squares[0, 0] = "";
                 _whiteCanCastleKingside = false;
                 _whiteCanCastleQueenside = false;
             }
             else if (_blackCanCastleQueenside)
             {
                 // Black long castle
-                _board[7, 2] = "k";
-                _board[7, 4] = "";
-                _board[7, 3] = "r";
-                _board[7, 0] = "";
+                _squares[7, 2] = "k";
+                _squares[7, 4] = "";
+                _squares[7, 3] = "r";
+                _squares[7, 0] = "";
                 _blackCanCastleKingside = false;
                 _blackCanCastleQueenside = false;
             }
         }
 
-        public bool IsKingInCheck(bool isWhite)
+        private bool IsKingInCheck()
         {
             // Locate the king
-            (int kingX, int kingY) = FindKing(isWhite);
+            (int kingX, int kingY) = FindKing();
 
             // Check if any opponent piece can attack the king
             for (int y = 0; y < 8; y++)
             {
                 for (int x = 0; x < 8; x++)
                 {
-                    string piece = _board[y, x];
-                    if (!string.IsNullOrEmpty(piece) && char.IsUpper(piece[0]) != isWhite)
+                    string piece = _squares[y, x];
+                    if (!string.IsNullOrEmpty(piece) && char.IsUpper(piece[0]) != _isWhiteTurn)
                     {
-                        var legalMoves = PieceMove.GetLegalMoves(piece, x, y, _board, _enPassantTarget, !isWhite, false, false);
+                        var legalMoves = PieceMove.GetLegalMoves(piece, x, y, _squares, _enPassantTarget, !_isWhiteTurn, false, false);
                         if (legalMoves.Contains((kingX, kingY)))
                         {
                             return true;
@@ -355,22 +386,22 @@ namespace RookWorks
             return false;
         }
         
-        public bool IsCheckmate(bool isWhite)
+        public bool IsCheckmate()
         {
-            if (!IsKingInCheck(isWhite)) return false;
+            if (!IsKingInCheck()) return false;
 
             // Check if the player has any legal moves to escape
             for (int y = 0; y < 8; y++)
             {
                 for (int x = 0; x < 8; x++)
                 {
-                    string piece = _board[y, x];
-                    if (!string.IsNullOrEmpty(piece) && char.IsUpper(piece[0]) == isWhite)
+                    string piece = _squares[y, x];
+                    if (!string.IsNullOrEmpty(piece) && char.IsUpper(piece[0]) == _isWhiteTurn)
                     {
-                        var legalMoves = PieceMove.GetLegalMoves(piece, x, y, _board, _enPassantTarget, !isWhite, false, false);
+                        var legalMoves = PieceMove.GetLegalMoves(piece, x, y, _squares, _enPassantTarget, !_isWhiteTurn, false, false);
                         foreach (var (toX, toY) in legalMoves)
                         {
-                            if (WouldMoveResolveCheck(x, y, toX, toY, isWhite))
+                            if (WouldMoveResolveCheck(x, y, toX, toY))
                             {
                                 return false; // Found a valid escape move
                             }
@@ -382,22 +413,22 @@ namespace RookWorks
             return true; // No moves resolve the check
         }
         
-        public bool IsStalemate(bool isWhite)
+        public bool IsStalemate()
         {
-            if (IsKingInCheck(isWhite)) return false;
+            if (IsKingInCheck()) return false;
 
             // Check if the player has any legal moves
             for (int y = 0; y < 8; y++)
             {
                 for (int x = 0; x < 8; x++)
                 {
-                    string piece = _board[y, x];
-                    if (!string.IsNullOrEmpty(piece) && char.IsUpper(piece[0]) == isWhite)
+                    string piece = _squares[y, x];
+                    if (!string.IsNullOrEmpty(piece) && char.IsUpper(piece[0]) == _isWhiteTurn)
                     {
-                        var legalMoves = PieceMove.GetLegalMoves(piece, x, y, _board, _enPassantTarget, !isWhite, false, false);
+                        var legalMoves = PieceMove.GetLegalMoves(piece, x, y, _squares, _enPassantTarget, !_isWhiteTurn, false, false);
                         foreach (var (toX, toY) in legalMoves)
                         {
-                            if (WouldMoveResolveCheck(x, y, toX, toY, isWhite))
+                            if (WouldMoveResolveCheck(x, y, toX, toY))
                             {
                                 return false; // Found a valid move
                             }
@@ -409,26 +440,26 @@ namespace RookWorks
             return true; // No legal moves and not in check
         }
 
-        private bool WouldMoveResolveCheck(int fromX, int fromY, int toX, int toY, bool isWhite)
+        private bool WouldMoveResolveCheck(int fromX, int fromY, int toX, int toY)
         {
             // Simulate the move
-            string temp = _board[toY, toX];
-            _board[toY, toX] = _board[fromY, fromX];
-            _board[fromY, fromX] = "";
+            string temp = _squares[toY, toX];
+            _squares[toY, toX] = _squares[fromY, fromX];
+            _squares[fromY, fromX] = "";
 
             // Check if the king is in check after the move
-            bool inCheck = IsKingInCheck(isWhite);
+            bool inCheck = IsKingInCheck();
 
             // Undo the move
-            _board[fromY, fromX] = _board[toY, toX];
-            _board[toY, toX] = temp;
+            _squares[fromY, fromX] = _squares[toY, toX];
+            _squares[toY, toX] = temp;
 
             return !inCheck;
         }
         
-        private (int, int) FindKing(bool isWhite)
+        private (int, int) FindKing()
         {
-            return isWhite ? _whiteKingPosition : _blackKingPosition;
+            return _isWhiteTurn ? _whiteKingPosition : _blackKingPosition;
         }
 
         private void UpdateKingPosition(bool isWhite, int toX, int toY)
@@ -464,15 +495,15 @@ namespace RookWorks
             }
         }
         
-        public bool IsEnPassantMove(int fromX, int fromY, int toX, int toY)
+        private bool IsEnPassantMove(int fromX, int fromY, int toX, int toY)
         {
             if (_enPassantTarget == null) return false;
 
             (int targetX, int targetY) = _enPassantTarget.Value;
             if (toX == targetX && toY == targetY)
             {
-                string piece = _board[fromY, fromX];
-                return piece.ToLower() == "p";
+                string piece = _squares[fromY, fromX];
+                return piece.ToLower() == Piece.Pawn;
             }
 
             return false;

@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace RookWorks
+namespace RookWorks.Gameplay
 {
     public class PieceMove 
     {
@@ -14,22 +14,22 @@ namespace RookWorks
 
             switch (piece)
             {
-                case "p": // Pawn
+                case Piece.Pawn: // Pawn
                     legalMoves.AddRange(GetPawnMoves(x, y, isWhite, board, enPassantTarget));
                     break;
-                case "r": // Rook
+                case Piece.Rook: // Rook
                     legalMoves.AddRange(GetSlidingMoves(x, y, board, new[] { (0, 1), (1, 0), (0, -1), (-1, 0) }));
                     break;
-                case "n": // Knight
+                case Piece.Knight: // Knight
                     legalMoves.AddRange(GetKnightMoves(x, y, board, isWhite));
                     break;
-                case "b": // Bishop
+                case Piece.Bishop: // Bishop
                     legalMoves.AddRange(GetSlidingMoves(x, y, board, new[] { (1, 1), (1, -1), (-1, 1), (-1, -1) }));
                     break;
-                case "q": // Queen
+                case Piece.Queen: // Queen
                     legalMoves.AddRange(GetSlidingMoves(x, y, board, new[] { (0, 1), (1, 0), (0, -1), (-1, 0), (1, 1), (1, -1), (-1, 1), (-1, -1) }));
                     break;
-                case "k": // King
+                case Piece.King: // King
                     legalMoves.AddRange(GetKingMoves(x, y, board, isWhite, canCastleKingside, canCastleQeenside));
                     break;
             }
@@ -43,7 +43,16 @@ namespace RookWorks
             int direction = isWhite ? 1 : -1;
 
             // Regular forward moves
-            if (board[y + direction, x] == "") legalMoves.Add((x, y + direction));
+            if (board[y + direction, x] == "")
+            {
+                legalMoves.Add((x, y + direction));
+                int startingRank = isWhite ? 1 : 6;
+                // Double move from starting rank
+                if (y == startingRank && board[y + 2 * direction, x] == "")
+                {
+                    legalMoves.Add((x, y + 2 * direction));
+                }
+            }
 
             // Diagonal captures
             if (x > 0 && board[y + direction, x - 1] != "" && isWhite != char.IsUpper(board[y + direction, x - 1][0]))
