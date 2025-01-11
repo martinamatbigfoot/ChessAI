@@ -6,6 +6,16 @@ namespace RookWorks.Gameplay
 {
     public class Board
     {
+        public enum BoardState
+        {
+            Playing,
+            WhiteWon,
+            BlackWon,
+            Tie,
+            Reviewing
+        }
+
+
         public string[,] Squares => _squares;
         private string[,] _squares = new string[8, 8];
         private bool _whiteCanCastleKingside = true;
@@ -15,11 +25,27 @@ namespace RookWorks.Gameplay
         private (int, int) _whiteKingPosition = (4, 0);
         private (int, int) _blackKingPosition = (4, 7);
         private (int, int)? _enPassantTarget;
+        public bool IsWhiteTurn => _isWhiteTurn;
         private bool _isWhiteTurn;
+
+        public bool IsLiveBoard
+        {
+            get
+            {
+                return _boardState != BoardState.Playing && _moveIndex == _fens.Count;
+            }
+        }
+        
+        private BoardState _boardState;
+        
         public List<string> WhitePieceRemoved => _whitePieceRemoved;
         private List<string> _whitePieceRemoved = new();
         public List<string> BlackPieceRemoved => _blackPieceRemoved;
         private List<string> _blackPieceRemoved = new();
+
+        private List<string> _fens = new();
+
+        private int _moveIndex;
         
         public Board()
         {
@@ -46,11 +72,21 @@ namespace RookWorks.Gameplay
             _blackCanCastleKingside = true;
             _blackCanCastleQueenside = true;
             _isWhiteTurn = true;
+            _boardState = BoardState.Playing;
             _whitePieceRemoved.Clear();
             _blackPieceRemoved.Clear();
+            _moveIndex = 0;
+            _fens.Clear();
+            _fens.Add(GetFen());
         }
 
-        public void SetCustomPosition(string fen)
+        public void SetLoadGame()
+        {
+            _boardState = BoardState.Reviewing;
+            SetInitialPosition();
+        }
+
+        public void SetCustomPosition(string fen, bool isReset = false)
         {
             // Start with a clean board
             _squares = new string[,]
@@ -112,9 +148,15 @@ namespace RookWorks.Gameplay
                     throw new ArgumentException("Invalid FEN string: rank must have exactly 8 squares.");
                 }
             }
-            
+            _boardState = BoardState.Playing;
             _whitePieceRemoved.Clear();
             _blackPieceRemoved.Clear();
+            if (isReset)
+            {
+                _moveIndex = 0;
+                _fens.Clear();
+                _fens.Add(GetFen());
+            }
 
             // Parse active color
             _isWhiteTurn = activeColor == "w";
@@ -138,15 +180,104 @@ namespace RookWorks.Gameplay
             return (x, y);
         }
 
+        private void SetInitialPosition()
+        {
+            if (_fens.Count > 0)
+            {
+                _moveIndex = 0;
+                SetCustomPosition(_fens[0]);
+            }
+        }
+
+        public void PreviousPosition()
+        {
+            if (_moveIndex > 0)
+            {
+                _moveIndex--;
+                SetCustomPosition(_fens[_moveIndex]);
+            }
+        }
+
+        public void NextPosition()
+        {
+            if (_moveIndex < _fens.Count - 1)
+            {
+                _moveIndex++;
+                SetCustomPosition(_fens[_moveIndex]);
+            }
+        }
+
         public bool TryMove(string move)
         {
             if (IsLegalMove(move))
             {
                 ApplyMove(move);
+                _fens.Add(GetFen());
+                _moveIndex++;
                 return true;
             }
 
             return false;
+        }
+        
+        public string GetFen()
+        {
+            // 1. Piece Placement
+            string piecePlacement = "";
+            for (int y = 7; y >= 0; y--)
+            {
+                int emptyCount = 0;
+                for (int x = 0; x < 8; x++)
+                {
+                    string piece = _squares[y, x];
+                    if (string.IsNullOrEmpty(piece))
+                    {
+                        emptyCount++;
+                    }
+                    else
+                    {
+                        if (emptyCount > 0)
+                        {
+                            piecePlacement += emptyCount.ToString();
+                            emptyCount = 0;
+                        }
+                        piecePlacement += piece;
+                    }
+                }
+                if (emptyCount > 0)
+                {
+                    piecePlacement += emptyCount.ToString();
+                }
+                if (y > 0)
+                {
+                    piecePlacement += "/";
+                }
+            }
+
+            // 2. Active Color
+            string activeColor = _isWhiteTurn ? "w" : "b";
+
+            // 3. Castling Availability
+            string castlingAvailability = "";
+            if (_whiteCanCastleKingside) castlingAvailability += "K";
+            if (_whiteCanCastleQueenside) castlingAvailability += "Q";
+            if (_blackCanCastleKingside) castlingAvailability += "k";
+            if (_blackCanCastleQueenside) castlingAvailability += "q";
+            if (string.IsNullOrEmpty(castlingAvailability)) castlingAvailability = "-";
+
+            // 4. En Passant Target Square
+            string enPassantTarget = _enPassantTarget != null
+                ? $"{(char)('a' + _enPassantTarget.Value.Item1)}{_enPassantTarget.Value.Item2 + 1}"
+                : "-";
+
+            // 5. Halfmove Clock (Placeholder: Needs to track moves for 50-move rule)
+            int halfmoveClock = 0; // Implement tracking for this based on gameplay
+
+            // 6. Fullmove Number (Placeholder: Needs to track full moves)
+            int fullmoveNumber = (_moveIndex / 2) + 1; // Fullmove starts at 1, incremented after Black's turn
+
+            // Combine all components into a FEN string
+            return $"{piecePlacement} {activeColor} {castlingAvailability} {enPassantTarget} {halfmoveClock} {fullmoveNumber}";
         }
 
         public bool IsPlayerPieceInSquare(string square)
@@ -164,7 +295,7 @@ namespace RookWorks.Gameplay
             return _isWhiteTurn ? char.IsUpper(piece[0]) : char.IsLower(piece[0]);
         }
 
-        private bool IsLegalMove(string move)
+        public bool IsLegalMove(string move)
         {
             int fromX = move[0] - 'a';
             int fromY = move[1] - '1';

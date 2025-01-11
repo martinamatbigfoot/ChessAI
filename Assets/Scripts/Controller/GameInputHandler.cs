@@ -10,8 +10,20 @@ namespace RookWorks.Controller
         private SquareView _draggingSquare;
         private SquareView _selectedSquare;
 
+
+
         private void Update()
         {
+            if (Input.GetKeyDown(KeyCode.LeftArrow))
+            {
+                _gameController.PreviousPosition();
+            }
+
+            if (Input.GetKeyDown(KeyCode.RightArrow))
+            {
+                _gameController.NextPosition();
+            }
+
             if (!_gameController.IsGameOver)
             {
                 // Handle mouse input

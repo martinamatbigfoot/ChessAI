@@ -17,9 +17,9 @@ namespace RookWorks.Visualization
         [SerializeField] private PieceSprite[] _pieceSprites;
 
         private readonly SquareView[,] _squareObjects = new SquareView[8, 8];
-        
+        private bool _inited;
 
-        public void CreateBoard(string[,] squares)
+        private void InitBoard(string[,] squares)
         {
             // Create squares and pieces only once
             for (int y = 0; y < 8; y++)
@@ -38,10 +38,14 @@ namespace RookWorks.Visualization
                     }
                 }
             }
+
+            _inited = true;
         }
 
         public void RefreshBoard(string[,] squares)
         {
+            if (!_inited)
+                InitBoard(squares);
             for (int y = 0; y < 8; y++)
             {
                 for (int x = 0; x < 8; x++)
