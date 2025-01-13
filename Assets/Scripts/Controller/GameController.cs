@@ -11,7 +11,7 @@ namespace RookWorks.Controller
         [SerializeField] private PanelView _panelView;
         [SerializeField] private BoardView _boardView;
         private readonly Board _board = new Board();
-        private List<ChessGameData> _loadedGames;
+        private List<ChessGameData> _loadedGames = new();
 
         public bool IsGameOver => _board.IsLiveBoard;
 
@@ -33,10 +33,10 @@ namespace RookWorks.Controller
                     _board.SetCustomPosition(fen, true);
                 }
 
-                List<string> uciMoves = new List<string>();
                 foreach (var move in game.Moves)
                 {
-                    string uciMove = MoveNotationConverter.ConvertToUCI(move, _board);
+                    string uciMove = MoveNotationConverter.ConvertToUci(move, _board);
+                    Debug.Log($"move {move} converted to uci as {uciMove}");
                     if (!_board.TryMove(uciMove))
                     {
                         _board.ResetBoard();
@@ -64,6 +64,7 @@ namespace RookWorks.Controller
 
         private void LoadGames()
         {
+            _loadedGames.Clear();
             string fileContent = FileLoader.LoadFile();
             if (!string.IsNullOrEmpty(fileContent))
             {

@@ -61,7 +61,6 @@ namespace RookWorks.Visualization
         void LoadGame(Guid guid)
         {
             _startGameCallback?.Invoke(guid);
-            _gamesContainer.SetActive(false);
             _mainContainer.SetActive(false);
             _gameContainer.SetActive(true);
         }

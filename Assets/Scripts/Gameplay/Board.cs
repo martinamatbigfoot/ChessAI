@@ -148,7 +148,6 @@ namespace RookWorks.Gameplay
                     throw new ArgumentException("Invalid FEN string: rank must have exactly 8 squares.");
                 }
             }
-            _boardState = BoardState.Playing;
             _whitePieceRemoved.Clear();
             _blackPieceRemoved.Clear();
             if (isReset)
@@ -328,7 +327,7 @@ namespace RookWorks.Gameplay
                 canCastleKingside, canCastleQueenside);
             if (!legalMoves.Contains((toX, toY)))
             {
-                Debug.Log("legal moves are "+ legalMoves.Count);
+                Debug.Log($"Illegal move {move}: legal moves for piece {piece} are {legalMoves.Count}");
                 return false;
             }
 

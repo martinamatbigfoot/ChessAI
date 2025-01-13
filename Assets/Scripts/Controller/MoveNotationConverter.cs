@@ -2,13 +2,15 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using RookWorks.Gameplay;
+using UnityEngine;
 
 namespace RookWorks.Controller
 {
     public static class MoveNotationConverter
     {
-        public static string ConvertToUCI(string algebraicMove, Board board)
+        public static string ConvertToUci(string algebraicMove, Board board)
         {
+            Debug.Log($"converting {algebraicMove} to uci");
             var squares = board.Squares;
 
             // Handle castling
