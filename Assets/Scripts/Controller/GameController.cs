@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using RookWorks.Gameplay;
+using RookWorks.Stockfish;
 using RookWorks.Visualization;
 using UnityEngine;
 
@@ -12,11 +13,13 @@ namespace RookWorks.Controller
         [SerializeField] private BoardView _boardView;
         private readonly Board _board = new Board();
         private List<ChessGameData> _loadedGames = new();
+        private StockfishInterface _stockfishInterface;
 
         public bool IsGameOver => _board.IsLiveBoard;
 
         private void Start()
         {
+            _stockfishInterface = new StockfishInterface();
             _panelView.Initialize(StartGame, LoadGames);
         }
 

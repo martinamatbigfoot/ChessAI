@@ -9,71 +9,84 @@ namespace RookWorks.Controller
     public static class MoveNotationConverter
     {
         public static string ConvertToUci(string algebraicMove, Board board)
+{
+    Debug.Log($"Converting {algebraicMove} to UCI");
+    var squares = board.Squares;
+
+    // Handle castling
+    if (algebraicMove == "O-O") return board.IsWhiteTurn ? "e1g1" : "e8g8";
+    if (algebraicMove == "O-O-O") return board.IsWhiteTurn ? "e1c1" : "e8c8";
+
+    // Remove check (`+`) or checkmate (`#`) indicators
+    algebraicMove = algebraicMove.TrimEnd('+', '#');
+
+    // Handle promotions
+    string promotion = null;
+    if (algebraicMove.Contains("="))
+    {
+        int promotionIndex = algebraicMove.IndexOf('=');
+        promotion = algebraicMove[(promotionIndex + 1)..];
+        algebraicMove = algebraicMove[..promotionIndex];
+    }
+
+    // Extract destination square
+    string destination = algebraicMove[^2..];
+    int toX = destination[0] - 'a';
+    int toY = destination[1] - '1';
+
+    // Determine the piece type
+    string pieceType;
+    int currentIndex = 0;
+
+    if (char.IsUpper(algebraicMove[currentIndex]))
+    {
+        pieceType = algebraicMove[currentIndex].ToString().ToLower(); // 'K', 'Q', 'R', etc.
+        currentIndex++;
+    }
+    else
+    {
+        pieceType = "p"; // Assume pawn by default
+    }
+
+    // Handle disambiguation
+    int? disambiguateX = null;
+    int? disambiguateY = null;
+    if (algebraicMove.Length > currentIndex + 2)
+    {
+        char disambiguator = algebraicMove[currentIndex];
+        if (char.IsLetter(disambiguator))
         {
-            Debug.Log($"converting {algebraicMove} to uci");
-            var squares = board.Squares;
-
-            // Handle castling
-            if (algebraicMove == "O-O") return board.IsWhiteTurn ? "e1g1" : "e8g8";
-            if (algebraicMove == "O-O-O") return board.IsWhiteTurn ? "e1c1" : "e8c8";
-
-            // Remove check (`+`) or checkmate (`#`) indicators
-            if (algebraicMove.EndsWith("+") || algebraicMove.EndsWith("#"))
-            {
-                algebraicMove = algebraicMove[..^1];
-            }
-
-            // Handle promotions
-            string promotion = null;
-            if (algebraicMove.Contains("="))
-            {
-                int promotionIndex = algebraicMove.IndexOf('=');
-                promotion = algebraicMove[(promotionIndex + 1)..];
-                algebraicMove = algebraicMove[..promotionIndex];
-            }
-
-            // Extract destination square
-            string destination = algebraicMove[^2..];
-            int toX = destination[0] - 'a';
-            int toY = destination[1] - '1';
-
-            // Determine the piece type
-            string pieceType = char.IsUpper(algebraicMove[0]) && !char.IsDigit(algebraicMove[1])
-                ? algebraicMove[0].ToString().ToLower()
-                : "p";
-
-            if (char.IsUpper(algebraicMove[0]) && !char.IsDigit(algebraicMove[1]))
-            {
-                algebraicMove = algebraicMove[1..];
-            }
-
-            // Disambiguation
-            int? disambiguateX = null;
-            int? disambiguateY = null;
-            if (algebraicMove.Length > 2)
-            {
-                char disambiguator = algebraicMove[0];
-                if (char.IsLetter(disambiguator))
-                    disambiguateX = disambiguator - 'a';
-                else if (char.IsDigit(disambiguator))
-                    disambiguateY = disambiguator - '1';
-
-                algebraicMove = algebraicMove[1..];
-            }
-
-            // Find source squares
-            var possibleSources = FindPossibleSources(pieceType, toX, toY, board);
-
-            if (possibleSources.Count == 0)
-                throw new Exception($"No valid source found for move: {algebraicMove}");
-
-            (int fromX, int fromY) = possibleSources.Count == 1
-                ? possibleSources[0]
-                : DisambiguateSource(possibleSources, disambiguateX, disambiguateY);
-
-            // Construct UCI
-            return $"{(char)(fromX + 'a')}{fromY + 1}{(char)(toX + 'a')}{toY + 1}{promotion ?? ""}";
+            disambiguateX = disambiguator - 'a';
         }
+        else if (char.IsDigit(disambiguator))
+        {
+            disambiguateY = disambiguator - '1';
+        }
+
+        currentIndex++;
+    }
+
+    // Update algebraicMove to reflect the remaining portion
+    algebraicMove = algebraicMove[currentIndex..];
+
+    // Find source squares
+    var possibleSources = FindPossibleSources(pieceType, toX, toY, board);
+
+    if (possibleSources.Count == 0)
+    {
+        Debug.LogError($"No valid source found for move: {algebraicMove}");
+        Debug.LogError($"Piece Type: {pieceType}, Target: {destination}, Turn: {(board.IsWhiteTurn ? "White" : "Black")}");
+        Debug.Log(board.GetStringBoard());
+        throw new Exception($"No valid source found for move: {algebraicMove}");
+    }
+
+    (int fromX, int fromY) = possibleSources.Count == 1
+        ? possibleSources[0]
+        : DisambiguateSource(possibleSources, disambiguateX, disambiguateY);
+
+    // Construct UCI
+    return $"{(char)(fromX + 'a')}{fromY + 1}{(char)(toX + 'a')}{toY + 1}{promotion ?? ""}";
+}
 
         private static List<(int x, int y)> FindPossibleSources(string pieceType, int toX, int toY, Board board)
         {
@@ -95,6 +108,11 @@ namespace RookWorks.Controller
                         }
                     }
                 }
+            }
+
+            if (sources.Count == 0)
+            {
+                Debug.LogError($"No sources found for piece type '{pieceType}' targeting {toX},{toY}");
             }
 
             return sources;

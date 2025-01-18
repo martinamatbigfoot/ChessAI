@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using UnityEngine;
 
 namespace RookWorks.Gameplay
@@ -51,6 +52,23 @@ namespace RookWorks.Gameplay
         {
             ResetBoard();
         }
+        
+        public string GetStringBoard()
+        {
+            StringBuilder sb = new StringBuilder();
+            for (int y = 7; y >= 0; y--)
+            {
+                for (int x = 0; x < 8; x++)
+                {
+                    string piece = _squares[y, x];
+                    sb.Append(string.IsNullOrEmpty(piece) ? "." : piece);
+                    sb.Append(" ");
+                }
+                sb.AppendLine();
+            }
+
+            return sb.ToString();
+        }
 
         public void ResetBoard()
         {
@@ -72,6 +90,8 @@ namespace RookWorks.Gameplay
             _blackCanCastleKingside = true;
             _blackCanCastleQueenside = true;
             _isWhiteTurn = true;
+            _whiteKingPosition = (4, 0);
+            _blackKingPosition = (4, 7);
             _boardState = BoardState.Playing;
             _whitePieceRemoved.Clear();
             _blackPieceRemoved.Clear();
@@ -139,6 +159,16 @@ namespace RookWorks.Gameplay
                             throw new ArgumentException("Invalid FEN string: too many pieces in a rank.");
                         }
                         _squares[y, x] = c.ToString();
+                        if (c == 'K')
+                        {
+                            _whiteKingPosition = (x, y);
+                        }
+
+                        if (c == 'k')
+                        {
+                            _blackKingPosition = (x, y);
+                        }
+
                         x++;
                     }
                 }
@@ -210,6 +240,9 @@ namespace RookWorks.Gameplay
         {
             if (IsLegalMove(move))
             {
+                Debug.Log(GetStringBoard());
+                Debug.Log($"moving {move} as {_isWhiteTurn}");
+                
                 ApplyMove(move);
                 _fens.Add(GetFen());
                 _moveIndex++;
@@ -312,29 +345,27 @@ namespace RookWorks.Gameplay
             string piece = _squares[fromY, fromX];
             if (string.IsNullOrEmpty(piece) || !IsPlayerPiece(piece))
             {
-                Debug.Log("wrong piece");
+                Debug.Log($"wrong piece when trying {move}");
+                Debug.Log(GetStringBoard());
                 return false;
             }
-            
-            
-            bool isWhite = char.IsUpper(piece[0]);
-            
-            bool canCastleKingside = !isWhite ? _blackCanCastleKingside : _whiteCanCastleKingside;
-            bool canCastleQueenside = !isWhite ? _blackCanCastleQueenside : _whiteCanCastleQueenside;
+
+            bool canCastleKingside = !_isWhiteTurn ? _blackCanCastleKingside : _whiteCanCastleKingside;
+            bool canCastleQueenside = !_isWhiteTurn ? _blackCanCastleQueenside : _whiteCanCastleQueenside;
             
             // Check if the move is valid for the piece
-            var legalMoves = PieceMove.GetLegalMoves(piece, fromX, fromY, _squares, _enPassantTarget, isWhite,
+            var legalMoves = PieceMove.GetLegalMoves(piece, fromX, fromY, _squares, _enPassantTarget, _isWhiteTurn,
                 canCastleKingside, canCastleQueenside);
             if (!legalMoves.Contains((toX, toY)))
             {
-                Debug.Log($"Illegal move {move}: legal moves for piece {piece} are {legalMoves.Count}");
+                //Debug.Log($"Illegal move {move}: legal moves for piece {piece} are {legalMoves.Count}");
                 return false;
             }
 
             // Simulate the move and check if it leaves the king in check
-            if (!WouldMoveResolveCheck(fromX, fromY, toX, toY))
+            if (!WouldMoveResolveCheck(piece, fromX, fromY, toX, toY))
             {
-                Debug.Log("not resolve check ");
+                //Debug.Log("not resolve check ");
                 return false;
             }
 
@@ -445,7 +476,7 @@ namespace RookWorks.Gameplay
 
         private void PerformKingsideCastle()
         {
-            if (_whiteCanCastleKingside)
+            if (_isWhiteTurn && _whiteCanCastleKingside)
             {
                 // White short castle
                 _squares[0, 6] = "K";
@@ -455,7 +486,7 @@ namespace RookWorks.Gameplay
                 _whiteCanCastleKingside = false;
                 _whiteCanCastleQueenside = false;
             }
-            else if (_blackCanCastleKingside)
+            else if (!_isWhiteTurn && _blackCanCastleKingside)
             {
                 // Black short castle
                 _squares[7, 6] = "k";
@@ -469,7 +500,7 @@ namespace RookWorks.Gameplay
 
         private void PerformQueensideCastle()
         {
-            if (_whiteCanCastleQueenside)
+            if (_isWhiteTurn && _whiteCanCastleQueenside)
             {
                 // White long castle
                 _squares[0, 2] = "K";
@@ -479,7 +510,7 @@ namespace RookWorks.Gameplay
                 _whiteCanCastleKingside = false;
                 _whiteCanCastleQueenside = false;
             }
-            else if (_blackCanCastleQueenside)
+            else if (!_isWhiteTurn && _blackCanCastleQueenside)
             {
                 // Black long castle
                 _squares[7, 2] = "k";
@@ -507,6 +538,7 @@ namespace RookWorks.Gameplay
                         var legalMoves = PieceMove.GetLegalMoves(piece, x, y, _squares, _enPassantTarget, !_isWhiteTurn, false, false);
                         if (legalMoves.Contains((kingX, kingY)))
                         {
+                            Debug.Log($"check from {piece} in {x},{y} to king in {kingX}, {kingY}");
                             return true;
                         }
                     }
@@ -531,7 +563,7 @@ namespace RookWorks.Gameplay
                         var legalMoves = PieceMove.GetLegalMoves(piece, x, y, _squares, _enPassantTarget, !_isWhiteTurn, false, false);
                         foreach (var (toX, toY) in legalMoves)
                         {
-                            if (WouldMoveResolveCheck(x, y, toX, toY))
+                            if (WouldMoveResolveCheck(piece, x, y, toX, toY))
                             {
                                 return false; // Found a valid escape move
                             }
@@ -558,7 +590,7 @@ namespace RookWorks.Gameplay
                         var legalMoves = PieceMove.GetLegalMoves(piece, x, y, _squares, _enPassantTarget, !_isWhiteTurn, false, false);
                         foreach (var (toX, toY) in legalMoves)
                         {
-                            if (WouldMoveResolveCheck(x, y, toX, toY))
+                            if (WouldMoveResolveCheck(piece, x, y, toX, toY))
                             {
                                 return false; // Found a valid move
                             }
@@ -570,12 +602,17 @@ namespace RookWorks.Gameplay
             return true; // No legal moves and not in check
         }
 
-        private bool WouldMoveResolveCheck(int fromX, int fromY, int toX, int toY)
+        private bool WouldMoveResolveCheck(string piece, int fromX, int fromY, int toX, int toY)
         {
             // Simulate the move
             string temp = _squares[toY, toX];
             _squares[toY, toX] = _squares[fromY, fromX];
             _squares[fromY, fromX] = "";
+
+            if (piece.ToLower() == Piece.King)
+            {
+                UpdateKingPosition(_isWhiteTurn, toX, toY);
+            }
 
             // Check if the king is in check after the move
             bool inCheck = IsKingInCheck();
@@ -583,6 +620,12 @@ namespace RookWorks.Gameplay
             // Undo the move
             _squares[fromY, fromX] = _squares[toY, toX];
             _squares[toY, toX] = temp;
+            
+            if (piece.ToLower() == Piece.King)
+            {
+                UpdateKingPosition(_isWhiteTurn, fromX, fromY);
+            }
+
 
             return !inCheck;
         }

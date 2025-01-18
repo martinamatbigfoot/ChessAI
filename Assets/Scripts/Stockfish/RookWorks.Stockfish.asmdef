@@ -1,11 +1,7 @@
 {
-    "name": "RookWorks.Controller",
-    "rootNamespace": "RookWorks.Controller",
-    "references": [
-        "GUID:5ad499930f39f47cbb56446b79c747ff",
-        "GUID:672fe4be45b1b46bc8c6513518103cd6",
-        "GUID:7112e5aec1e704584b404d1d6d099473"
-    ],
+    "name": "RookWorks.Stockfish",
+    "rootNamespace": "RookWorks.Stockfish",
+    "references": [],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
