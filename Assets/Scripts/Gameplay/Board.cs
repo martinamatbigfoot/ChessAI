@@ -46,6 +46,9 @@ namespace RookWorks.Gameplay
 
         private List<string> _fens = new();
 
+        public List<string> Moves => _moves;
+        private List<string> _moves = new();
+
         private int _moveIndex;
         
         public Board()
@@ -244,6 +247,7 @@ namespace RookWorks.Gameplay
                 Debug.Log($"moving {move} as {_isWhiteTurn}");
                 
                 ApplyMove(move);
+                _moves.Add(move);
                 _fens.Add(GetFen());
                 _moveIndex++;
                 return true;

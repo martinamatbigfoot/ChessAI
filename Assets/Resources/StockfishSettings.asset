@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f008a940de6f742a999ba7c155bf863d, type: 3}
+  m_Name: StockfishSettings
+  m_EditorClassIdentifier: 
+  Threads: 1
+  Hash: 16
+  Multipv: 1
+  NumaPolicy: auto
+  Ponder: 0
+  EvalFile: 
+  EvalFileSmall: 
+  Chess960: 0
+  ShowWDL: 0
+  LimitStrength: 0
+  Elo: 1320
+  SkillLevel: 20
+  SyzygyPath: 
+  SyzygyProbeDepth: 1
+  Syzygy50MoveRule: 1
+  SyzygyProbeLimit: 7
+  MoveOverhead: 10

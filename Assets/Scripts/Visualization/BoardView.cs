@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace RookWorks.Visualization
@@ -13,10 +14,13 @@ namespace RookWorks.Visualization
         }
 
         [SerializeField] private GameObject _squarePrefab; // Prefab for squares
+        [SerializeField] private GameObject _moveIndicatorPrefab;
         [SerializeField] private Transform _boardParent;
         [SerializeField] private PieceSprite[] _pieceSprites;
+        
 
         private readonly SquareView[,] _squareObjects = new SquareView[8, 8];
+        private List<MoveIndicatorView> _moveIndicatorViews = new();
         private bool _inited;
 
         private void InitBoard(string[,] squares)
@@ -56,7 +60,22 @@ namespace RookWorks.Visualization
                 }
             }
         }
-        
+
+        public void RefreshBestMoves(List<MoveInfo> moves)
+        {
+            for (var i = 0; i < moves.Count; i++)
+            {
+                MoveInfo move = moves[i];
+                if (_moveIndicatorViews.Count <= i)
+                {
+                    GameObject moveIndicatorGameObject = Instantiate(_moveIndicatorPrefab, _boardParent);
+                    var view = moveIndicatorGameObject.GetComponent<MoveIndicatorView>();
+                    _moveIndicatorViews.Add(view);
+                }
+                _moveIndicatorViews[i].IndicateMove(move, moves.Count);
+            }
+        }
+
         private Sprite GetPieceSprite(string piece)
         {
             foreach (PieceSprite pieceSprite in _pieceSprites)
