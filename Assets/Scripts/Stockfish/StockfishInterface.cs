@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
 
@@ -26,6 +27,9 @@ namespace RookWorks.Stockfish
 
         [DllImport("libstockfish")]
         private static extern void ExecuteCommand(string cmd);
+
+        [DllImport("libstockfish")]
+        private static extern string ProcessEventsFromNative();
 
         public StockfishInterface()
         {
@@ -53,8 +57,36 @@ namespace RookWorks.Stockfish
             //ReadResponseAsync();
             SendCommand("uci");
             SendCommand("isready");
+            Read();
+
+        }
+
+        async void Read()
+        {
+            while (true)
+            {
+                await Task.Delay(3000);
+                Debug.Log("reading");
+                string result = ProcessEventsFromNative();
+                Debug.Log(result);
+            }
         }
         
+        /*private string GetMessageFromNative() {
+            IntPtr ptr = ProcessEventsFromNative();
+            if (ptr == IntPtr.Zero) {
+                return null; // No message in the queue
+            }
+            
+
+            // Convert the pointer to a managed string
+            string message = Marshal.PtrToStringAuto(ptr);
+            if (string.IsNullOrEmpty(message)) {
+                return "No message"; // Fallback for empty strings
+            }
+            return message;
+        }*/
+
         private void OnMessageReceived(string message)
         {
             Debug.Log($"Message from Stockfish: {message}");
